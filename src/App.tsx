@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Calendar, CheckSquare, Users, Home, Settings, Plus, Edit2, Trash2, ShoppingCart, MessageSquare, UtensilsCrossed, DollarSign, GitBranch, Contact as ContactIcon, FileText, Menu, TrendingUp, TrendingDown, Wallet, Target, BarChart3, Printer, TestTube2, Play, ChevronRight } from 'lucide-react'
+import { Calendar, CheckSquare, Users, Home, Settings, Plus, Edit2, Trash2, ShoppingCart, MessageSquare, UtensilsCrossed, DollarSign, GitBranch, Contact as ContactIcon, FileText, Menu, TrendingUp, TrendingDown, Wallet, Target, BarChart3, Printer, TestTube2, Play, ChevronRight, UserPlus } from 'lucide-react'
 import { Modal, ConfirmDialog, Toast } from './components/Modal'
 import { TaskForm, EventForm } from './components/Forms'
 import { FamilyMemberForm } from './components/FamilyMemberForm'
@@ -24,6 +24,7 @@ import { UITestPage } from './components/UITestPage'
 import { UserFlowDemo } from './components/UserFlowDemo'
 import { FamilySwitcher } from './components/FamilySwitcher'
 import { FamilySetupWizard } from './components/FamilySetupWizard'
+import { InviteMembersModal } from './components/InviteMembersModal'
 import './components/dashboard.css'
 import { notificationsAPI, type Notification, tasksAPI, eventsAPI, familyMembersAPI, shoppingItemsAPI, mealsAPI, transactionsAPI, familyRelationshipsAPI, contactsAPI, type Contact, type Event } from './services/api'
 import type { CalendarEvent } from './services/googleCalendar'
@@ -219,6 +220,7 @@ function App() {
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [showEventModal, setShowEventModal] = useState(false)
   const [showFamilyModal, setShowFamilyModal] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
   const [showShoppingModal, setShowShoppingModal] = useState(false)
   const [showMessageModal, setShowMessageModal] = useState(false)
   const [showMealModal, setShowMealModal] = useState(false)
@@ -2420,16 +2422,25 @@ function App() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex justify-between items-center">
         <h3 className="text-2xl font-bold text-gray-900">Family Members</h3>
-        <button
-          onClick={() => {
-            setEditingMember(null)
-            setShowFamilyModal(true)
-          }}
-          className="flex items-center space-x-2 px-5 py-2.5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all font-medium shadow-soft hover:shadow-medium btn-press"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Add Member</span>
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="flex items-center space-x-2 px-5 py-2.5 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all font-medium shadow-soft hover:shadow-medium btn-press"
+          >
+            <UserPlus className="w-5 h-5" />
+            <span>Invite</span>
+          </button>
+          <button
+            onClick={() => {
+              setEditingMember(null)
+              setShowFamilyModal(true)
+            }}
+            className="flex items-center space-x-2 px-5 py-2.5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all font-medium shadow-soft hover:shadow-medium btn-press"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Add Member</span>
+          </button>
+        </div>
       </div>
 
       {familyMembers.length === 0 ? (
@@ -3580,6 +3591,11 @@ function App() {
           } : undefined}
         />
       </Modal>
+
+      <InviteMembersModal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+      />
 
       <Modal
         isOpen={showShoppingModal}

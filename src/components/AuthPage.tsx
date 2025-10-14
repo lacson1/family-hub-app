@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LogIn, UserPlus, Mail, Lock, User, Home, Heart, Users, Sparkles } from 'lucide-react'
+import { LogIn, UserPlus, Mail, Lock, User, Heart, Users, Sparkles } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export function AuthPage() {

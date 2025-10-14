@@ -9,6 +9,7 @@ import { TransactionForm } from './components/TransactionForm'
 import { MealForm } from './components/MealForm'
 import { BudgetForm } from './components/BudgetForm'
 import { MoneyCharts } from './components/MoneyCharts'
+import { MealInsights } from './components/MealInsights'
 import { EnhancedFamilyTree } from './components/EnhancedFamilyTree'
 import { RelationshipForm } from './components/RelationshipForm'
 import { FamilyMemberDetails } from './components/FamilyMemberDetails'
@@ -184,6 +185,9 @@ function App() {
   // Money tab state
   const [moneyTab, setMoneyTab] = useState<'overview' | 'transactions' | 'budgets' | 'charts'>('overview')
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null)
+
+  // Meals tab state
+  const [mealsTab, setMealsTab] = useState<'planner' | 'insights'>('planner')
 
   // State for data
   const [tasks, setTasks] = useState<Task[]>([])
@@ -2849,27 +2853,65 @@ function App() {
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h3 className="text-2xl font-bold text-gray-900">Weekly Meal Planner</h3>
+          <h3 className="text-2xl font-bold text-gray-900">Meals</h3>
           <div className="flex gap-2">
+            {mealsTab === 'planner' && (
+              <>
+                <button
+                  onClick={handlePrintMealPlan}
+                  className="flex items-center space-x-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium shadow-soft hover:shadow-medium btn-press"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Print</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingMeal(null)
+                    setShowMealModal(true)
+                  }}
+                  className="flex items-center space-x-2 px-5 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all font-medium shadow-soft hover:shadow-medium btn-press"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Add Meal</span>
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Meals Tab Navigation */}
+        <div className="bg-white rounded-2xl p-1 shadow-medium border border-gray-100">
+          <div className="flex">
             <button
-              onClick={handlePrintMealPlan}
-              className="flex items-center space-x-2 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-medium shadow-soft hover:shadow-medium btn-press"
+              onClick={() => setMealsTab('planner')}
+              className={`flex-1 px-4 py-3 text-sm font-medium rounded-xl transition-all ${
+                mealsTab === 'planner'
+                  ? 'bg-orange-500 text-white shadow-soft'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
             >
-              <Printer className="w-4 h-4" />
-              <span>Print</span>
+              📅 Weekly Planner
             </button>
             <button
-              onClick={() => {
-                setEditingMeal(null)
-                setShowMealModal(true)
-              }}
-              className="flex items-center space-x-2 px-5 py-2.5 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all font-medium shadow-soft hover:shadow-medium btn-press"
+              onClick={() => setMealsTab('insights')}
+              className={`flex-1 px-4 py-3 text-sm font-medium rounded-xl transition-all ${
+                mealsTab === 'insights'
+                  ? 'bg-orange-500 text-white shadow-soft'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
             >
-              <Plus className="w-5 h-5" />
-              <span>Add Meal</span>
+              📊 Insights
             </button>
           </div>
         </div>
+
+        {mealsTab === 'insights' ? (
+          <MealInsights />
+        ) : (
+          <>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h4 className="text-xl font-semibold text-gray-900">Weekly Meal Planner</h4>
+            </div>
 
         {/* Search and Filter Bar */}
         <div className="bg-white rounded-2xl p-4 shadow-medium border border-gray-100">
@@ -3073,6 +3115,8 @@ function App() {
               )
             })}
           </div>
+        )}
+          </>
         )}
       </div>
     )

@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { ChevronDown, Users, Plus, Settings } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, Users, Plus } from 'lucide-react'
 import { useFamily } from '../contexts/FamilyContext'
 
 interface FamilySwitcherProps {

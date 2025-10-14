@@ -20,44 +20,38 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Default user for auto-authentication (login disabled)
-const defaultUser: User = {
-    id: 'default-user',
-    name: 'Family User',
-    email: 'family@example.com',
-}
+// No default user in production; rely on backend session
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
-    // Load user from localStorage on mount (currently disabled - auto-authenticated)
+    // Load user from backend session on mount
     useEffect(() => {
-        const loadUser = () => {
+        const loadUser = async () => {
             try {
-                const savedUser = localStorage.getItem('familyHubUser')
-                if (savedUser) {
-                    const parsedUser = JSON.parse(savedUser)
-                    // Validate that the parsed user has required fields
-                    if (parsedUser && parsedUser.id && parsedUser.name && parsedUser.email) {
-                        setUser(parsedUser)
+                const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+                const response = await fetch(`${API_BASE_URL}/auth/me`, {
+                    method: 'GET',
+                    credentials: 'include',
+                })
+                if (response.ok) {
+                    const data = await response.json()
+                    if (data?.user?.id && data?.user?.name && data?.user?.email) {
+                        setUser(data.user)
+                        localStorage.setItem('familyHubUser', JSON.stringify(data.user))
                     } else {
-                        // Invalid user data, use default
-                        console.warn('Invalid user data in localStorage, using default user')
-                        setUser(defaultUser)
-                        localStorage.setItem('familyHubUser', JSON.stringify(defaultUser))
+                        setUser(null)
+                        localStorage.removeItem('familyHubUser')
                     }
                 } else {
-                    // Set default user if none exists
-                    setUser(defaultUser)
-                    localStorage.setItem('familyHubUser', JSON.stringify(defaultUser))
+                    setUser(null)
+                    localStorage.removeItem('familyHubUser')
                 }
             } catch (error) {
-                console.error('Failed to load user:', error)
-                // Clear potentially corrupted data and fallback to default user
+                console.error('Failed to load user from session:', error)
+                setUser(null)
                 localStorage.removeItem('familyHubUser')
-                setUser(defaultUser)
-                localStorage.setItem('familyHubUser', JSON.stringify(defaultUser))
             } finally {
                 setIsLoading(false)
             }
@@ -74,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({ email, password }),
             })
 
@@ -106,6 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({ name, email, password }),
             })
 
@@ -131,8 +127,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const signOut = () => {
-        setUser(null)
-        localStorage.removeItem('familyHubUser')
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+        fetch(`${API_BASE_URL}/auth/logout`, { method: 'POST', credentials: 'include' }).finally(() => {
+            setUser(null)
+            localStorage.removeItem('familyHubUser')
+        })
     }
 
     const updateUser = (updates: Partial<User>) => {

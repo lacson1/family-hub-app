@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import pool from '../database/db';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { requireAuth, type AuthenticatedRequest } from '../middleware/auth';
+import { setCsrfCookie } from '../middleware/csrf';
 
 const router = Router();
 
@@ -31,16 +35,41 @@ router.post(
                 return res.status(409).json({ error: 'Email already exists' });
             }
 
-            // In production, hash the password using bcrypt
-            // const hashedPassword = await bcrypt.hash(password, 10);
+            // Hash the password using bcrypt
+            const hashedPassword = await bcrypt.hash(password, 10);
 
             // Create new user
             const result = await pool.query(
                 'INSERT INTO users (name, email, password, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id, name, email, created_at',
-                [name, email, password] // In production, use hashedPassword
+                [name, email, hashedPassword]
             );
 
             const user = result.rows[0];
+
+            const secret = process.env.JWT_SECRET;
+            if (!secret) {
+                console.error('JWT_SECRET is not set');
+                return res.status(500).json({ error: 'Server configuration error' });
+            }
+            const accessToken = jwt.sign({ id: user.id, email: user.email, name: user.name }, secret, { expiresIn: '15m' });
+            const refreshToken = jwt.sign({ id: user.id, email: user.email, name: user.name, type: 'refresh' }, secret, { expiresIn: '7d' });
+
+            res.cookie('token', accessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                maxAge: 15 * 60 * 1000,
+            });
+            res.cookie('refreshToken', refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000,
+            });
+
+            // Set CSRF token cookie for client
+            setCsrfCookie(res);
+
             res.status(201).json({
                 success: true,
                 user: {
@@ -84,13 +113,36 @@ router.post(
 
             const user = result.rows[0];
 
-            // In production, compare hashed password using bcrypt
-            // const isValidPassword = await bcrypt.compare(password, user.password);
-            const isValidPassword = password === user.password;
+            // Compare hashed password using bcrypt
+            const isValidPassword = await bcrypt.compare(password, user.password);
 
             if (!isValidPassword) {
                 return res.status(401).json({ error: 'Invalid email or password' });
             }
+
+            const secret = process.env.JWT_SECRET;
+            if (!secret) {
+                console.error('JWT_SECRET is not set');
+                return res.status(500).json({ error: 'Server configuration error' });
+            }
+            const accessToken = jwt.sign({ id: user.id, email: user.email, name: user.name }, secret, { expiresIn: '15m' });
+            const refreshToken = jwt.sign({ id: user.id, email: user.email, name: user.name, type: 'refresh' }, secret, { expiresIn: '7d' });
+
+            res.cookie('token', accessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                maxAge: 15 * 60 * 1000,
+            });
+            res.cookie('refreshToken', refreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                maxAge: 7 * 24 * 60 * 60 * 1000,
+            });
+
+            // Set CSRF token cookie for client
+            setCsrfCookie(res);
 
             res.json({
                 success: true,
@@ -110,31 +162,37 @@ router.post(
 
 // Logout endpoint (for session-based auth, this would clear the session)
 router.post('/logout', (req: Request, res: Response) => {
-    // In a session-based system, you would destroy the session here
-    // req.session.destroy();
+    res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    });
+    res.clearCookie('refreshToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    });
+    res.clearCookie('csrfToken', {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    });
     res.json({ success: true, message: 'Logged out successfully' });
 });
 
 // Get current user (requires authentication middleware in production)
-router.get('/me', async (req: Request, res: Response) => {
-    // In production, get user ID from JWT token or session
-    // For now, accept user ID from query params for testing
-    const userId = req.query.userId;
-
-    if (!userId) {
-        return res.status(401).json({ error: 'Not authenticated' });
-    }
-
+router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
+        if (!req.user?.id) {
+            return res.status(401).json({ error: 'Not authenticated' });
+        }
         const result = await pool.query(
             'SELECT id, name, email, created_at FROM users WHERE id = $1',
-            [userId]
+            [req.user.id]
         );
-
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
-
         res.json({ user: result.rows[0] });
     } catch (error) {
         console.error('Get user error:', error);
@@ -143,4 +201,42 @@ router.get('/me', async (req: Request, res: Response) => {
 });
 
 export default router;
+
+// Refresh token endpoint (no CSRF, cookie-protected)
+router.post('/refresh', async (req: Request, res: Response) => {
+    try {
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            console.error('JWT_SECRET is not set');
+            return res.status(500).json({ error: 'Server configuration error' });
+        }
+        const token = req.cookies?.refreshToken;
+        if (!token) return res.status(401).json({ error: 'Missing refresh token' });
+        const payload = jwt.verify(token, secret) as { id: string; email: string; name?: string; type?: string };
+        if (payload.type !== 'refresh') return res.status(401).json({ error: 'Invalid refresh token' });
+
+        // rotate tokens
+        const accessToken = jwt.sign({ id: payload.id, email: payload.email, name: payload.name }, secret, { expiresIn: '15m' });
+        const newRefreshToken = jwt.sign({ id: payload.id, email: payload.email, name: payload.name, type: 'refresh' }, secret, { expiresIn: '7d' });
+
+        res.cookie('token', accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 15 * 60 * 1000,
+        });
+        res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        // Optional: refresh CSRF token too
+        setCsrfCookie(res);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Refresh error:', err);
+        return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+});
 

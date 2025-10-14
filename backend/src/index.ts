@@ -2,6 +2,11 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import http from 'http';
+import cookieParser from 'cookie-parser';
+import pool from './database/db';
+import bcrypt from 'bcryptjs';
+import { requireAuth } from './middleware/auth';
+import { requireCsrf } from './middleware/csrf';
 import { initDatabase } from './database/init';
 import { wsManager } from './realtime/websocket';
 import { startReminderJobs } from './jobs/reminders';
@@ -33,7 +38,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cookieParser());
+app.use(cors({
+    origin: process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || ['http://localhost:5173'],
+    credentials: true,
+}));
 app.use(express.json());
 
 // Health check endpoint
@@ -42,25 +51,25 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // Routes
-app.use('/api/tasks', tasksRouter);
-app.use('/api/events', eventsRouter);
-app.use('/api/family-members', familyMembersRouter);
-app.use('/api/shopping-items', shoppingItemsRouter);
-app.use('/api/meals', mealsRouter);
-app.use('/api/family-relationships', familyRelationshipsRouter);
-app.use('/api/transactions', transactionsRouter);
-app.use('/api/budgets', budgetsRouter);
-app.use('/api/notifications', notificationsRouter);
+app.use('/api/tasks', requireAuth, requireCsrf, tasksRouter);
+app.use('/api/events', requireAuth, requireCsrf, eventsRouter);
+app.use('/api/family-members', requireAuth, requireCsrf, familyMembersRouter);
+app.use('/api/shopping-items', requireAuth, requireCsrf, shoppingItemsRouter);
+app.use('/api/meals', requireAuth, requireCsrf, mealsRouter);
+app.use('/api/family-relationships', requireAuth, requireCsrf, familyRelationshipsRouter);
+app.use('/api/transactions', requireAuth, requireCsrf, transactionsRouter);
+app.use('/api/budgets', requireAuth, requireCsrf, budgetsRouter);
+app.use('/api/notifications', requireAuth, requireCsrf, notificationsRouter);
 app.use('/api/notifications-test', notificationsTestRouter);
-app.use('/api/notification-preferences', notificationPreferencesRouter);
-app.use('/api/contacts', contactsRouter);
+app.use('/api/notification-preferences', requireAuth, notificationPreferencesRouter);
+app.use('/api/contacts', requireAuth, requireCsrf, contactsRouter);
 app.use('/api/auth', authRouter);
-app.use('/api/messages', messagesRouter);
-app.use('/api/activity-log', activityLogRouter);
-app.use('/api/dashboard', dashboardRouter);
-app.use('/api/analytics', analyticsRouter);
-app.use('/api/upload', uploadRouter);
-app.use('/api/push', pushRouter);
+app.use('/api/messages', requireAuth, requireCsrf, messagesRouter);
+app.use('/api/activity-log', requireAuth, requireCsrf, activityLogRouter);
+app.use('/api/dashboard', requireAuth, requireCsrf, dashboardRouter);
+app.use('/api/analytics', requireAuth, requireCsrf, analyticsRouter);
+app.use('/api/upload', requireAuth, requireCsrf, uploadRouter);
+app.use('/api/push', requireAuth, requireCsrf, pushRouter);
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
@@ -77,6 +86,26 @@ const startServer = async () => {
     try {
         await initDatabase();
         console.log('Database initialized successfully');
+
+        // Optionally seed demo user
+        const demoEmail = process.env.DEMO_USER_EMAIL || 'demo@familyhub.com';
+        const demoPassword = process.env.DEMO_USER_PASSWORD || 'demo123';
+        const demoName = process.env.DEMO_USER_NAME || 'Demo User';
+        try {
+            const existing = await pool.query('SELECT id FROM users WHERE email = $1', [demoEmail]);
+            if (existing.rows.length === 0) {
+                const hashed = await bcrypt.hash(demoPassword, 10);
+                await pool.query(
+                    'INSERT INTO users (name, email, password, created_at) VALUES ($1, $2, $3, NOW())',
+                    [demoName, demoEmail, hashed]
+                );
+                console.log('Seeded demo user');
+            } else {
+                console.log('Demo user already exists');
+            }
+        } catch (seedErr) {
+            console.warn('Demo user seed skipped/failed:', seedErr);
+        }
 
         // Create HTTP server
         const server = http.createServer(app);

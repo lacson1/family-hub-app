@@ -103,12 +103,19 @@ router.get(
                 [monthStartStr]
             );
 
-            const budgetStatus = budgetResult.rows.map(row => ({
-                category: row.category,
-                budgetAmount: parseFloat(row.budget_amount),
-                spentAmount: parseFloat(row.spent_amount),
-                percentage: Math.round((parseFloat(row.spent_amount) / parseFloat(row.budget_amount)) * 100)
-            }));
+            const budgetStatus = budgetResult.rows.map(row => {
+                const budgetAmountNum = parseFloat(row.budget_amount);
+                const spentAmountNum = parseFloat(row.spent_amount);
+                const percentage = budgetAmountNum > 0
+                    ? Math.round((spentAmountNum / budgetAmountNum) * 100)
+                    : 0;
+                return {
+                    category: row.category,
+                    budgetAmount: budgetAmountNum,
+                    spentAmount: spentAmountNum,
+                    percentage
+                };
+            });
 
             // Get recent activity
             const activityResult = await pool.query(

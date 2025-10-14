@@ -5,6 +5,7 @@ import {
     Clock, AlertCircle, Activity
 } from 'lucide-react';
 import { apiClient } from '../services/api';
+import './dashboard.css';
 
 interface DashboardTask {
     id: string;
@@ -246,10 +247,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ userId, onNavigate, onOpen
                                         <p className={`font-medium ${task.completed ? 'line-through text-gray-400' : ''}`}>
                                             {task.title}
                                         </p>
-                                        <p className="text-xs text-gray-500">{task.assigned_to}</p>
+                                        <p className="text-xs text-gray-500">{task.assigned_to || 'Unassigned'}</p>
                                     </div>
                                     <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(task.priority)}`}>
-                                        {task.priority}
+                                        {task.priority || 'none'}
                                     </span>
                                 </div>
                             ))}
@@ -308,19 +309,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ userId, onNavigate, onOpen
                         </h2>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {summary.today.events.map((event) => (
-                            <div key={event.id} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                                <p className="font-medium text-blue-900">{event.title}</p>
-                                <p className="text-sm text-blue-600 mt-1">
-                                    {new Date(`${event.date}T${event.time}`).toLocaleString('en-US', {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        hour: 'numeric',
-                                        minute: '2-digit'
-                                    })}
-                                </p>
-                            </div>
-                        ))}
+                        {summary.today.events.map((event) => {
+                            const hasTime = Boolean(event.time);
+                            const dateObj = hasTime ? new Date(`${event.date}T${event.time}`) : new Date(event.date);
+                            const isValid = !isNaN(dateObj.getTime());
+                            const formatted = isValid
+                                ? (hasTime
+                                    ? dateObj.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+                                    : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+                                : 'Date unavailable';
+                            return (
+                                <div key={event.id} className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                    <p className="font-medium text-blue-900">{event.title}</p>
+                                    <p className="text-sm text-blue-600 mt-1">{formatted}{!hasTime && isValid ? ' • All day' : ''}</p>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -342,12 +346,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ userId, onNavigate, onOpen
                                     </span>
                                 </div>
                                 <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div
-                                        className={`h-2 rounded-full ${getBudgetStatusColor(budget.percentage)}`}
-                                        style={{ width: `${Math.min(budget.percentage, 100)}%` }}
-                                    ></div>
+                                    {(() => {
+                                        const raw = Number.isFinite(budget.percentage) ? budget.percentage : 0;
+                                        const clamped = Math.max(0, Math.min(100, raw));
+                                        const bucket = Math.round(clamped / 5) * 5; // 0,5,10,...100
+                                        return (
+                                            <div className={`h-2 rounded-full ${getBudgetStatusColor(budget.percentage)} w-pct-${bucket}`}></div>
+                                        );
+                                    })()}
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">{budget.percentage}% used</p>
+                                <p className="text-xs text-gray-500 mt-1">{Number.isFinite(budget.percentage) ? budget.percentage : 0}% used</p>
                             </div>
                         ))}
                     </div>

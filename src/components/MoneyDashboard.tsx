@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Download, AlertCircle } from 'lucide-react';
 import analyticsAPI, { type SpendingTrend, type CategoryBreakdown, type BudgetStatus } from '../services/analytics';
+import './dashboard.css';
 
 export const MoneyDashboard: React.FC = () => {
     const [spendingTrends, setSpendingTrends] = useState<SpendingTrend[]>([]);
@@ -212,13 +213,17 @@ export const MoneyDashboard: React.FC = () => {
                                         <span>${budget.remaining.toFixed(2)} left</span>
                                     </div>
                                     <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div
-                                            className={`h-2 rounded-full transition-all ${budget.status === 'over' ? 'bg-red-500' :
-                                                budget.status === 'warning' ? 'bg-orange-500' :
-                                                    budget.status === 'caution' ? 'bg-yellow-500' : 'bg-green-500'
-                                                }`}
-                                            style={{ width: `${Math.min(budget.percentage, 100)}%` }}
-                                        ></div>
+                                        {(() => {
+                                            const clamped = Math.max(0, Math.min(100, budget.percentage));
+                                            const bucket = Math.round(clamped / 5) * 5;
+                                            const color = budget.status === 'over' ? 'bg-red-500'
+                                                : budget.status === 'warning' ? 'bg-orange-500'
+                                                : budget.status === 'caution' ? 'bg-yellow-500'
+                                                : 'bg-green-500';
+                                            return (
+                                                <div className={`h-2 rounded-full transition-all ${color} w-pct-${bucket}`}></div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             ))}

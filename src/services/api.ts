@@ -114,13 +114,32 @@ interface Meal {
 
 // Generic fetch wrapper
 const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const isUnsafe = ['POST', 'PUT', 'PATCH', 'DELETE'].includes((options.method || 'GET').toUpperCase());
+    const csrfToken = isUnsafe ? getCookie('csrfToken') : undefined;
+    let response = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: {
             'Content-Type': 'application/json',
+            ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
             ...options.headers,
         },
+        credentials: 'include',
         ...options,
     });
+    // If unauthorized, try refreshing once
+    if (response.status === 401 && endpoint !== '/auth/refresh') {
+        try {
+            await fetch(`${API_BASE_URL}/auth/refresh`, { method: 'POST', credentials: 'include' });
+            response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+                    ...options.headers,
+                },
+                credentials: 'include',
+                ...options,
+            });
+        } catch {}
+    }
 
     if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'An error occurred' }));
@@ -132,6 +151,12 @@ const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
 
 // Export for use in other services like dashboard and analytics
 export const apiClient = fetchAPI;
+
+// Helper: read cookie value (for CSRF token)
+function getCookie(name: string): string | undefined {
+    const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()\[\]\\\/\+^]/g, '\\$&') + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : undefined;
+}
 
 // Tasks API
 export const tasksAPI = {

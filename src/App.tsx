@@ -21,6 +21,7 @@ import { AuthPage } from './components/AuthPage'
 import { ProfilePage } from './components/ProfilePage'
 import { UITestPage } from './components/UITestPage'
 import { UserFlowDemo } from './components/UserFlowDemo'
+import './components/dashboard.css'
 import { notificationsAPI, type Notification, tasksAPI, eventsAPI, familyMembersAPI, shoppingItemsAPI, mealsAPI, transactionsAPI, familyRelationshipsAPI, contactsAPI, type Contact, type Event } from './services/api'
 import type { CalendarEvent } from './services/googleCalendar'
 import { messagesAPI } from './services/messagesAPI'
@@ -2112,11 +2113,13 @@ function App() {
                               </span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-3">
-                              <div
-                                className={`h-3 rounded-full transition-all ${isOverBudget ? 'bg-red-500' : percentage > 75 ? 'bg-orange-500' : 'bg-green-500'
-                                  }`}
-                                style={{ width: `${Math.min(percentage, 100)}%` }}
-                              ></div>
+                              {(() => {
+                                const clamped = Math.max(0, Math.min(100, percentage))
+                                const bucket = Math.round(clamped / 5) * 5
+                                return (
+                                  <div className={`h-3 rounded-full transition-all ${isOverBudget ? 'bg-red-500' : percentage > 75 ? 'bg-orange-500' : 'bg-green-500'} w-pct-${bucket}`}></div>
+                                )
+                              })()}
                             </div>
                             <p className="text-xs text-gray-500 mt-1">{percentage.toFixed(1)}% used</p>
                           </div>

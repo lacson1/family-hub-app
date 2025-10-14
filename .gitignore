@@ -37,3 +37,22 @@ backend/.env
 /playwright-report/
 /playwright/.cache/
 .env.test
+
+# Additional cleanup
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+coverage/
+.nyc_output/
+
+# IDE files
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json

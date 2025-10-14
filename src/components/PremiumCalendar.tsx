@@ -10,14 +10,14 @@ import type { Event } from '../services/api'
 
 interface PremiumCalendarProps {
     events: Event[]
-    onAddEvent: (eventData: Omit<Event, 'id' | 'attendees' | 'attachments' | 'created_at' | 'updated_at'>) => void
-    onEditEvent: (id: string, eventData: Partial<Omit<Event, 'id' | 'attachments' | 'created_at' | 'updated_at'>>) => void
-    onDeleteEvent: (id: string) => void
-    onUpdateDateTime?: (id: string, datetime: { date?: string; time?: string; end_time?: string }) => void
-    onSyncWithGoogle?: () => void
-    onImportFromGoogle?: () => void
+    onAddEvent: (eventData: Omit<Event, 'id' | 'attendees' | 'attachments' | 'created_at' | 'updated_at'>) => void | Promise<void>
+    onEditEvent: (id: string, eventData: Partial<Omit<Event, 'id' | 'attachments' | 'created_at' | 'updated_at'>>) => void | Promise<void>
+    onDeleteEvent: (id: string) => void | Promise<void>
+    onUpdateDateTime?: (id: string, datetime: { date?: string; time?: string; end_time?: string }) => void | Promise<void>
+    onSyncWithGoogle?: () => void | Promise<void>
+    onImportFromGoogle?: () => void | Promise<void>
     isGoogleConnected?: boolean
-    onGoogleConnect?: () => void
+    onGoogleConnect?: () => void | Promise<void>
     currentUser?: string
 }
 

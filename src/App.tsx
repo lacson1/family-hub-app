@@ -21,7 +21,8 @@ import { AuthPage } from './components/AuthPage'
 import { ProfilePage } from './components/ProfilePage'
 import { UITestPage } from './components/UITestPage'
 import { UserFlowDemo } from './components/UserFlowDemo'
-import { notificationsAPI, type Notification, tasksAPI, eventsAPI, familyMembersAPI, shoppingItemsAPI, mealsAPI, transactionsAPI, familyRelationshipsAPI, contactsAPI, type Contact } from './services/api'
+import { notificationsAPI, type Notification, tasksAPI, eventsAPI, familyMembersAPI, shoppingItemsAPI, mealsAPI, transactionsAPI, familyRelationshipsAPI, contactsAPI, type Contact, type Event } from './services/api'
+import type { CalendarEvent } from './services/googleCalendar'
 import { messagesAPI } from './services/messagesAPI'
 import { googleCalendarService } from './services/googleCalendar'
 import { useAuth } from './contexts/AuthContext'
@@ -37,15 +38,7 @@ interface Task {
   completed: boolean
 }
 
-interface Event {
-  id: string
-  title: string
-  date: string
-  time: string
-  type: 'family' | 'personal' | 'work'
-  description?: string
-  googleEventId?: string
-}
+// Removed local Event interface in favor of shared type from services/api
 
 interface FamilyMember {
   id: string
@@ -493,7 +486,18 @@ function App() {
 
     showToast('Syncing with Google Calendar...', 'info')
 
-    const result = await googleCalendarService.syncAllEventsToGoogle(events)
+    const calendarEvents: CalendarEvent[] = events
+      .filter(e => !!e.time) // only timed events supported by current google sync
+      .map(e => ({
+        id: e.google_event_id,
+        title: e.title,
+        date: e.date,
+        time: e.time as string,
+        type: e.type,
+        description: e.description,
+      }))
+
+    const result = await googleCalendarService.syncAllEventsToGoogle(calendarEvents)
 
     if (result.success > 0) {
       showToast(`Successfully synced ${result.success} events to Google Calendar!`, 'success')
@@ -514,7 +518,7 @@ function App() {
 
     if (googleEvents.length > 0) {
       // Merge with existing events (avoid duplicates)
-      const existingIds = new Set(events.map(e => e.googleEventId).filter(Boolean))
+      const existingIds = new Set(events.map(e => e.google_event_id).filter(Boolean))
       const newEvents = googleEvents.filter(ge => !existingIds.has(ge.id))
 
       newEvents.forEach(googleEvent => {
@@ -525,7 +529,7 @@ function App() {
           time: googleEvent.time,
           type: googleEvent.type,
           description: googleEvent.description,
-          googleEventId: googleEvent.id
+          google_event_id: googleEvent.id
         }
         setEvents(prev => [...prev, newEvent])
       })
@@ -2205,7 +2209,7 @@ function App() {
                 <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                   <div>
                     <p className="text-sm font-medium text-gray-900">{event.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{formatDate(event.date)} at {formatTime(event.time)}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{formatDate(event.date)}{event.time ? ` at ${formatTime(event.time)}` : ''}</p>
                   </div>
                   <div className={`w-3 h-3 rounded-full shadow-soft ${event.type === 'family' ? 'bg-blue-500' :
                     event.type === 'personal' ? 'bg-green-500' : 'bg-purple-500'
@@ -3475,7 +3479,7 @@ function App() {
           initialData={editingEvent ? {
             title: editingEvent.title,
             date: editingEvent.date,
-            time: editingEvent.time,
+            time: editingEvent.time || '',
             type: editingEvent.type,
             description: editingEvent.description
           } : undefined}

@@ -30,8 +30,21 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
 }) => {
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
+    const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
+        const checkIsMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+
+        checkIsMobile();
+        window.addEventListener('resize', checkIsMobile);
+        return () => window.removeEventListener('resize', checkIsMobile);
+    }, []);
+
+    useEffect(() => {
+        if (!isMobile) return;
+
         const handleScroll = () => {
             const currentScrollY = window.scrollY;
 
@@ -45,23 +58,18 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
             setLastScrollY(currentScrollY);
         };
 
-        // Only add scroll listener on mobile
-        if (window.innerWidth < 768) {
-            window.addEventListener('scroll', handleScroll, { passive: true });
-            return () => window.removeEventListener('scroll', handleScroll);
-        }
-    }, [lastScrollY]);
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [lastScrollY, isMobile]);
 
     // Don't show on desktop
-    if (window.innerWidth >= 768) {
+    if (!isMobile) {
         return null;
     }
 
     return (
         <nav
-            className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg transition-transform duration-300 z-50 ${isVisible ? 'translate-y-0' : 'translate-y-full'
-                } ${className}`}
-            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            className={`fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg transition-transform duration-300 z-50 pb-safe ${isVisible ? 'translate-y-0' : 'translate-y-full'} ${className}`}
         >
             <div className="flex justify-around items-center h-16">
                 {navItems.map((item) => {

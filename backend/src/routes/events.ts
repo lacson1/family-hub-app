@@ -4,6 +4,8 @@ import pool from '../database/db';
 import multer from 'multer';
 import path from 'path';
 import { promises as fs } from 'fs';
+import { requireAuth } from '../middleware/auth';
+import { requireFamily, type FamilyRequest } from '../middleware/family';
 
 const router = Router();
 
@@ -36,27 +38,30 @@ const upload = multer({
 });
 
 // Get all events with attendees and attachments
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
   try {
     const { created_by, start_date, end_date } = req.query;
 
-    let query = 'SELECT * FROM events WHERE 1=1';
-    const values: string[] = [];
+    let query = 'SELECT * FROM events WHERE family_id = $1';
+    const values: any[] = [req.familyId];
     let paramCount = 1;
 
     if (created_by && typeof created_by === 'string') {
+      paramCount++;
       query += ` AND created_by = $${paramCount}`;
       values.push(created_by);
       paramCount++;
     }
 
     if (start_date && typeof start_date === 'string') {
+      paramCount++;
       query += ` AND date >= $${paramCount}`;
       values.push(start_date);
       paramCount++;
     }
 
     if (end_date && typeof end_date === 'string') {
+      paramCount++;
       query += ` AND date <= $${paramCount}`;
       values.push(end_date);
       paramCount++;
@@ -98,10 +103,10 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // Get single event with details
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM events WHERE id = $1', [id]);
+    const result = await pool.query('SELECT * FROM events WHERE id = $1 AND family_id = $2', [id, req.familyId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Event not found' });
@@ -138,6 +143,8 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create event
 router.post(
   '/',
+  requireAuth,
+  requireFamily,
   [
     body('title').trim().notEmpty().withMessage('Title is required'),
     body('date').isDate().withMessage('Valid date is required'),
@@ -153,7 +160,7 @@ router.post(
     body('attendees').optional().isArray(),
     body('recurring_rule').optional().isObject(),
   ],
-  async (req: Request, res: Response) => {
+  async (req: FamilyRequest, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -180,8 +187,8 @@ router.post(
       }
 
       const result = await client.query(
-        `INSERT INTO events (title, date, time, end_time, all_day, type, description, location, created_by, google_event_id, reminder_minutes, recurring_rule) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        `INSERT INTO events (title, date, time, end_time, all_day, type, description, location, created_by, google_event_id, reminder_minutes, recurring_rule, family_id) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
         [
           title,
           date,
@@ -194,7 +201,8 @@ router.post(
           created_by || null,
           google_event_id || null,
           reminder_minutes || null,
-          recurring_rule ? JSON.stringify(recurring_rule) : null
+          recurring_rule ? JSON.stringify(recurring_rule) : null,
+          req.familyId
         ]
       );
 
@@ -204,8 +212,8 @@ router.post(
       if (attendees && Array.isArray(attendees) && attendees.length > 0) {
         for (const attendee of attendees) {
           await client.query(
-            'INSERT INTO event_attendees (event_id, family_member_id, user_email, status) VALUES ($1, $2, $3, $4)',
-            [newEvent.id, attendee.family_member_id || null, attendee.user_email || null, attendee.status || 'pending']
+            'INSERT INTO event_attendees (event_id, family_member_id, user_email, status, family_id) VALUES ($1, $2, $3, $4, $5)',
+            [newEvent.id, attendee.family_member_id || null, attendee.user_email || null, attendee.status || 'pending', req.familyId]
           );
         }
       }
@@ -218,8 +226,8 @@ router.post(
         const remindAt = new Date(eventDateTime.getTime() - (reminder_minutes * 60 * 1000));
 
         await client.query(
-          'INSERT INTO event_reminders (event_id, remind_at, reminder_type) VALUES ($1, $2, $3)',
-          [newEvent.id, remindAt, 'notification']
+          'INSERT INTO event_reminders (event_id, remind_at, reminder_type, family_id) VALUES ($1, $2, $3, $4)',
+          [newEvent.id, remindAt, 'notification', req.familyId]
         );
       }
 
@@ -252,6 +260,8 @@ router.post(
 // Update event
 router.put(
   '/:id',
+  requireAuth,
+  requireFamily,
   [
     body('title').optional().trim().notEmpty(),
     body('date').optional().isDate(),
@@ -266,7 +276,7 @@ router.put(
     body('attendees').optional().isArray(),
     body('recurring_rule').optional().isObject(),
   ],
-  async (req: Request, res: Response) => {
+  async (req: FamilyRequest, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -339,8 +349,8 @@ router.put(
       }
 
       const result = await client.query(
-        `UPDATE events SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
-        values
+        `UPDATE events SET ${updates.join(', ')} WHERE id = $${paramCount} AND family_id = $${paramCount + 1} RETURNING *`,
+        [...values, req.familyId]
       );
 
       if (result.rows.length === 0) {
@@ -351,20 +361,20 @@ router.put(
       // Update attendees if provided
       if (attendees !== undefined && Array.isArray(attendees)) {
         // Delete existing attendees
-        await client.query('DELETE FROM event_attendees WHERE event_id = $1', [id]);
+        await client.query('DELETE FROM event_attendees WHERE event_id = $1 AND family_id = $2', [id, req.familyId]);
 
         // Add new attendees
         for (const attendee of attendees) {
           await client.query(
-            'INSERT INTO event_attendees (event_id, family_member_id, user_email, status) VALUES ($1, $2, $3, $4)',
-            [id, attendee.family_member_id || null, attendee.user_email || null, attendee.status || 'pending']
+            'INSERT INTO event_attendees (event_id, family_member_id, user_email, status, family_id) VALUES ($1, $2, $3, $4, $5)',
+            [id, attendee.family_member_id || null, attendee.user_email || null, attendee.status || 'pending', req.familyId]
           );
         }
       }
 
       // Update reminders if reminder_minutes changed
       if (reminder_minutes !== undefined) {
-        await client.query('DELETE FROM event_reminders WHERE event_id = $1 AND sent = FALSE', [id]);
+        await client.query('DELETE FROM event_reminders WHERE event_id = $1 AND family_id = $2 AND sent = FALSE', [id, req.familyId]);
 
         if (reminder_minutes > 0) {
           const updatedEvent = result.rows[0];
@@ -374,8 +384,8 @@ router.put(
           const remindAt = new Date(eventDateTime.getTime() - (reminder_minutes * 60 * 1000));
 
           await client.query(
-            'INSERT INTO event_reminders (event_id, remind_at, reminder_type) VALUES ($1, $2, $3)',
-            [id, remindAt, 'notification']
+            'INSERT INTO event_reminders (event_id, remind_at, reminder_type, family_id) VALUES ($1, $2, $3, $4)',
+            [id, remindAt, 'notification', req.familyId]
           );
         }
       }
@@ -412,10 +422,10 @@ router.put(
 );
 
 // Delete event
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM events WHERE id = $1 RETURNING *', [id]);
+    const result = await pool.query('DELETE FROM events WHERE id = $1 AND family_id = $2 RETURNING *', [id, req.familyId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Event not found' });
@@ -429,7 +439,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Upload attachment to event
-router.post('/:id/attachments', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/:id/attachments', requireAuth, requireFamily, upload.single('file'), async (req: FamilyRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { uploaded_by } = req.body;
@@ -439,7 +449,7 @@ router.post('/:id/attachments', upload.single('file'), async (req: Request, res:
     }
 
     // Check if event exists
-    const eventCheck = await pool.query('SELECT id FROM events WHERE id = $1', [id]);
+    const eventCheck = await pool.query('SELECT id FROM events WHERE id = $1 AND family_id = $2', [id, req.familyId]);
     if (eventCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Event not found' });
     }
@@ -447,9 +457,9 @@ router.post('/:id/attachments', upload.single('file'), async (req: Request, res:
     const fileUrl = `/uploads/events/${req.file.filename}`;
 
     const result = await pool.query(
-      `INSERT INTO event_attachments (event_id, file_name, file_url, file_type, file_size, uploaded_by) 
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [id, req.file.originalname, fileUrl, req.file.mimetype, req.file.size, uploaded_by || 'unknown']
+      `INSERT INTO event_attachments (event_id, file_name, file_url, file_type, file_size, uploaded_by, family_id) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [id, req.file.originalname, fileUrl, req.file.mimetype, req.file.size, uploaded_by || 'unknown', req.familyId]
     );
 
     res.status(201).json(result.rows[0]);
@@ -460,13 +470,13 @@ router.post('/:id/attachments', upload.single('file'), async (req: Request, res:
 });
 
 // Delete attachment
-router.delete('/:eventId/attachments/:attachmentId', async (req: Request, res: Response) => {
+router.delete('/:eventId/attachments/:attachmentId', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
   try {
     const { eventId, attachmentId } = req.params;
 
     const result = await pool.query(
-      'DELETE FROM event_attachments WHERE id = $1 AND event_id = $2 RETURNING file_url',
-      [attachmentId, eventId]
+      'DELETE FROM event_attachments WHERE id = $1 AND event_id = $2 AND family_id = $3 RETURNING file_url',
+      [attachmentId, eventId, req.familyId]
     );
 
     if (result.rows.length === 0) {
@@ -489,7 +499,7 @@ router.delete('/:eventId/attachments/:attachmentId', async (req: Request, res: R
 });
 
 // Quick update event date/time (for drag and drop)
-router.patch('/:id/datetime', async (req: Request, res: Response) => {
+router.patch('/:id/datetime', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { date, time, end_time } = req.body;
@@ -515,8 +525,8 @@ router.patch('/:id/datetime', async (req: Request, res: Response) => {
     values.push(id);
 
     const result = await pool.query(
-      `UPDATE events SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
-      values
+      `UPDATE events SET ${updates.join(', ')} WHERE id = $${paramCount} AND family_id = $${paramCount + 1} RETURNING *`,
+      [...values, req.familyId]
     );
 
     if (result.rows.length === 0) {

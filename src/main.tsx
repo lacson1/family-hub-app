@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { registerServiceWorker, unregisterServiceWorker } from './registerSW'
 import { AuthProvider } from './contexts/AuthContext'
+import { FamilyProvider } from './contexts/FamilyContext'
 
 // Register service worker for PWA (only in production)
 if (import.meta.env.PROD) {
@@ -16,7 +17,9 @@ if (import.meta.env.PROD) {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
-      <App />
+      <FamilyProvider>
+        <App />
+      </FamilyProvider>
     </AuthProvider>
   </StrictMode>,
 )

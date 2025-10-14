@@ -1,19 +1,23 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import pool from '../database/db';
+import { requireAuth } from '../middleware/auth';
+import { requireFamily, type FamilyRequest } from '../middleware/family';
 
 const router = Router();
 
 // Get all transactions
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
     try {
         const { start_date, end_date } = req.query;
-        let query = 'SELECT * FROM transactions';
-        const params: string[] = [];
+        let query = 'SELECT * FROM transactions WHERE family_id = $1';
+        const params: any[] = [req.familyId];
+        let paramCount = 2;
 
         if (start_date && end_date) {
-            query += ' WHERE date BETWEEN $1 AND $2';
+            query += ` AND date BETWEEN $${paramCount} AND $${paramCount + 1}`;
             params.push(start_date as string, end_date as string);
+            paramCount += 2;
         }
 
         query += ' ORDER BY date DESC, created_at DESC';

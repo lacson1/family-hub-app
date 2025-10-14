@@ -21,12 +21,15 @@ import { AuthPage } from './components/AuthPage'
 import { ProfilePage } from './components/ProfilePage'
 import { UITestPage } from './components/UITestPage'
 import { UserFlowDemo } from './components/UserFlowDemo'
+import { FamilySwitcher } from './components/FamilySwitcher'
+import { FamilySetupWizard } from './components/FamilySetupWizard'
 import './components/dashboard.css'
 import { notificationsAPI, type Notification, tasksAPI, eventsAPI, familyMembersAPI, shoppingItemsAPI, mealsAPI, transactionsAPI, familyRelationshipsAPI, contactsAPI, type Contact, type Event } from './services/api'
 import type { CalendarEvent } from './services/googleCalendar'
 import { messagesAPI } from './services/messagesAPI'
 import { googleCalendarService } from './services/googleCalendar'
 import { useAuth } from './contexts/AuthContext'
+import { useFamily } from './contexts/FamilyContext'
 import { TypingIndicator } from './components/TypingIndicator'
 import { MessageAttachment } from './components/MessageAttachment'
 
@@ -170,10 +173,13 @@ const loadSettings = (): AppSettings => {
 
 function App() {
   const { user, isAuthenticated, isLoading } = useAuth()
+  const { activeFamily, families, isLoading: familyLoading } = useFamily()
+  // activeFamily will be used for future features like showing family-specific data
 
   const [activeTab, setActiveTab] = useState('dashboard')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings>(loadSettings())
+  const [showFamilySetup, setShowFamilySetup] = useState(false)
 
   // Money tab state
   const [moneyTab, setMoneyTab] = useState<'overview' | 'transactions' | 'budgets' | 'charts'>('overview')
@@ -438,7 +444,7 @@ function App() {
   }, [user])
 
   // Show loading or auth screens after all hooks
-  if (isLoading) {
+  if (isLoading || familyLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <div className="text-center">
@@ -451,6 +457,15 @@ function App() {
 
   if (!isAuthenticated || !user) {
     return <AuthPage />
+  }
+
+  // Show family setup wizard if user has no families
+  if (families.length === 0 && !showFamilySetup) {
+    setShowFamilySetup(true)
+  }
+
+  if (showFamilySetup) {
+    return <FamilySetupWizard onComplete={() => setShowFamilySetup(false)} />
   }
 
   if (isDataLoading) {
@@ -3378,6 +3393,9 @@ function App() {
               >
                 <Menu className="w-6 h-6" />
               </button>
+              
+              {/* Family Switcher */}
+              <FamilySwitcher />
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Welcome back, {userName}!</h2>
                 <p className="text-xs sm:text-sm text-gray-500 mt-1 hidden sm:block">Showing activities for {userName}</p>

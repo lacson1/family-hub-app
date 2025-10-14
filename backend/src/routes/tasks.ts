@@ -1,14 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import pool from '../database/db';
+import { requireAuth } from '../middleware/auth';
+import { requireFamily, type FamilyRequest } from '../middleware/family';
 
 const router = Router();
 
 // Get all tasks
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM tasks ORDER BY due_date ASC, created_at DESC'
+      'SELECT * FROM tasks WHERE family_id = $1 ORDER BY due_date ASC, created_at DESC',
+      [req.familyId]
     );
     res.json(result.rows);
   } catch (error) {
@@ -18,10 +21,10 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // Get single task
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('SELECT * FROM tasks WHERE id = $1', [id]);
+    const result = await pool.query('SELECT * FROM tasks WHERE id = $1 AND family_id = $2', [id, req.familyId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Task not found' });
@@ -37,13 +40,15 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create task
 router.post(
   '/',
+  requireAuth,
+  requireFamily,
   [
     body('title').trim().notEmpty().withMessage('Title is required'),
     body('assigned_to').trim().notEmpty().withMessage('Assigned to is required'),
     body('due_date').isDate().withMessage('Valid due date is required'),
     body('priority').isIn(['low', 'medium', 'high']).withMessage('Invalid priority'),
   ],
-  async (req: Request, res: Response) => {
+  async (req: FamilyRequest, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -52,8 +57,8 @@ router.post(
     try {
       const { title, assigned_to, due_date, priority } = req.body;
       const result = await pool.query(
-        'INSERT INTO tasks (title, assigned_to, due_date, priority) VALUES ($1, $2, $3, $4) RETURNING *',
-        [title, assigned_to, due_date, priority]
+        'INSERT INTO tasks (title, assigned_to, due_date, priority, family_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [title, assigned_to, due_date, priority, req.familyId]
       );
       res.status(201).json(result.rows[0]);
     } catch (error) {
@@ -66,6 +71,8 @@ router.post(
 // Update task
 router.put(
   '/:id',
+  requireAuth,
+  requireFamily,
   [
     body('title').optional().trim().notEmpty(),
     body('assigned_to').optional().trim().notEmpty(),
@@ -73,7 +80,7 @@ router.put(
     body('priority').optional().isIn(['low', 'medium', 'high']),
     body('completed').optional().isBoolean(),
   ],
-  async (req: Request, res: Response) => {
+  async (req: FamilyRequest, res: Response) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -112,8 +119,8 @@ router.put(
       values.push(id);
 
       const result = await pool.query(
-        `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
-        values
+        `UPDATE tasks SET ${updates.join(', ')} WHERE id = $${paramCount} AND family_id = $${paramCount + 1} RETURNING *`,
+        [...values, req.familyId]
       );
 
       if (result.rows.length === 0) {
@@ -129,10 +136,10 @@ router.put(
 );
 
 // Delete task
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query('DELETE FROM tasks WHERE id = $1 RETURNING *', [id]);
+    const result = await pool.query('DELETE FROM tasks WHERE id = $1 AND family_id = $2 RETURNING *', [id, req.familyId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Task not found' });

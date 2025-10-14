@@ -29,6 +29,39 @@ export const initDatabase = async () => {
     `);
 
     // Create tables
+    // Families and multi-tenancy core tables
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS families (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_families (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+        role VARCHAR(50) NOT NULL DEFAULT 'member' CHECK (role IN ('owner','admin','member')),
+        joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, family_id)
+      );
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS family_invites (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        family_id UUID NOT NULL REFERENCES families(id) ON DELETE CASCADE,
+        email VARCHAR(255) NOT NULL,
+        role VARCHAR(50) NOT NULL DEFAULT 'member' CHECK (role IN ('admin','member')),
+        code VARCHAR(64) NOT NULL UNIQUE,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','revoked','expired')),
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
     await client.query(`
       CREATE TABLE IF NOT EXISTS family_members (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -43,6 +76,7 @@ export const initDatabase = async () => {
         address TEXT,
         notes TEXT,
         generation INTEGER DEFAULT 0,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -58,6 +92,7 @@ export const initDatabase = async () => {
         completed BOOLEAN DEFAULT FALSE,
         recurring_rule JSONB,
         parent_task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -68,11 +103,12 @@ export const initDatabase = async () => {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         title VARCHAR(255) NOT NULL,
         date DATE NOT NULL,
-        time TIME NOT NULL,
+        time TIME,
         type VARCHAR(20) NOT NULL CHECK (type IN ('family', 'personal', 'work')),
         description TEXT,
         recurring_rule JSONB,
         parent_event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -87,6 +123,7 @@ export const initDatabase = async () => {
         notes TEXT,
         purchased BOOLEAN DEFAULT FALSE,
         added_by VARCHAR(255) NOT NULL,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -98,6 +135,7 @@ export const initDatabase = async () => {
         person_id UUID NOT NULL REFERENCES family_members(id) ON DELETE CASCADE,
         related_person_id UUID NOT NULL REFERENCES family_members(id) ON DELETE CASCADE,
         relationship_type VARCHAR(50) NOT NULL CHECK (relationship_type IN ('parent', 'child', 'spouse', 'sibling')),
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         CONSTRAINT unique_relationship UNIQUE (person_id, related_person_id, relationship_type)
@@ -117,6 +155,7 @@ export const initDatabase = async () => {
         is_recurring BOOLEAN DEFAULT FALSE,
         recurrence_frequency VARCHAR(20),
         recurrence_end_date DATE,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -129,6 +168,7 @@ export const initDatabase = async () => {
         amount DECIMAL(10, 2) NOT NULL,
         period VARCHAR(20) NOT NULL CHECK (period IN ('monthly', 'yearly')),
         created_by VARCHAR(255) NOT NULL,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(category, period, created_by)
@@ -152,6 +192,7 @@ export const initDatabase = async () => {
         is_template BOOLEAN DEFAULT FALSE,
         tags TEXT[],
         created_by VARCHAR(255) NOT NULL,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -168,6 +209,7 @@ export const initDatabase = async () => {
         read BOOLEAN DEFAULT FALSE,
         action_url VARCHAR(500),
         related_id VARCHAR(255),
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -185,6 +227,7 @@ export const initDatabase = async () => {
         notes TEXT,
         is_favorite BOOLEAN DEFAULT FALSE,
         created_by VARCHAR(255) NOT NULL,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -206,6 +249,7 @@ export const initDatabase = async () => {
         contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
         linked_type VARCHAR(20) NOT NULL CHECK (linked_type IN ('event', 'task')),
         linked_id UUID NOT NULL,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -224,6 +268,7 @@ export const initDatabase = async () => {
         edited BOOLEAN DEFAULT FALSE,
         edited_at TIMESTAMP,
         deleted BOOLEAN DEFAULT FALSE,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -237,6 +282,7 @@ export const initDatabase = async () => {
         endpoint TEXT NOT NULL UNIQUE,
         keys JSONB NOT NULL,
         user_agent TEXT,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -266,6 +312,7 @@ export const initDatabase = async () => {
         enable_email_notifications BOOLEAN DEFAULT FALSE,
         email_digest_frequency VARCHAR(20) DEFAULT 'daily' CHECK (email_digest_frequency IN ('none', 'daily', 'weekly')),
         
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -282,6 +329,7 @@ export const initDatabase = async () => {
         entity_id VARCHAR(255),
         description TEXT NOT NULL,
         metadata JSONB,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -314,6 +362,15 @@ export const initDatabase = async () => {
       ALTER TABLE events ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER;
     `);
 
+    // Fix time column to allow NULL for all-day events
+    try {
+      await client.query(`
+        ALTER TABLE events ALTER COLUMN time DROP NOT NULL;
+      `);
+    } catch (error) {
+      console.warn('Failed to modify time column:', error);
+    }
+
     // Create event_attendees table
     await client.query(`
       CREATE TABLE IF NOT EXISTS event_attendees (
@@ -322,6 +379,7 @@ export const initDatabase = async () => {
         family_member_id UUID REFERENCES family_members(id) ON DELETE CASCADE,
         user_email VARCHAR(255),
         status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'tentative')),
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
@@ -337,6 +395,7 @@ export const initDatabase = async () => {
         file_type VARCHAR(100),
         file_size INTEGER,
         uploaded_by VARCHAR(255) NOT NULL,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -349,57 +408,145 @@ export const initDatabase = async () => {
         remind_at TIMESTAMP NOT NULL,
         reminder_type VARCHAR(20) DEFAULT 'notification' CHECK (reminder_type IN ('notification', 'email', 'both')),
         sent BOOLEAN DEFAULT FALSE,
+        family_id UUID REFERENCES families(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
     // Create indexes for better performance
     await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_families_created_by ON families(created_by);
+      CREATE INDEX IF NOT EXISTS idx_user_families_user ON user_families(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_families_family ON user_families(family_id);
+      CREATE INDEX IF NOT EXISTS idx_family_invites_family ON family_invites(family_id);
+      CREATE INDEX IF NOT EXISTS idx_family_invites_email ON family_invites(email);
       CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);
       CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+      CREATE INDEX IF NOT EXISTS idx_tasks_family_id ON tasks(family_id);
       CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
       CREATE INDEX IF NOT EXISTS idx_events_created_by ON events(created_by);
       CREATE INDEX IF NOT EXISTS idx_events_google_id ON events(google_event_id);
       CREATE INDEX IF NOT EXISTS idx_events_all_day ON events(all_day);
+      CREATE INDEX IF NOT EXISTS idx_events_family_id ON events(family_id);
       CREATE INDEX IF NOT EXISTS idx_shopping_purchased ON shopping_items(purchased);
+      CREATE INDEX IF NOT EXISTS idx_shopping_family_id ON shopping_items(family_id);
       CREATE INDEX IF NOT EXISTS idx_relationships_person ON family_relationships(person_id);
       CREATE INDEX IF NOT EXISTS idx_relationships_related_person ON family_relationships(related_person_id);
+      CREATE INDEX IF NOT EXISTS idx_family_relationships_family_id ON family_relationships(family_id);
       CREATE INDEX IF NOT EXISTS idx_meals_date ON meals(date);
       CREATE INDEX IF NOT EXISTS idx_meals_meal_type ON meals(meal_type);
+      CREATE INDEX IF NOT EXISTS idx_meals_family_id ON meals(family_id);
       CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
       CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions(type);
       CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions(category);
       CREATE INDEX IF NOT EXISTS idx_transactions_recurring ON transactions(is_recurring);
+      CREATE INDEX IF NOT EXISTS idx_transactions_family_id ON transactions(family_id);
       CREATE INDEX IF NOT EXISTS idx_budgets_category ON budgets(category);
       CREATE INDEX IF NOT EXISTS idx_budgets_created_by ON budgets(created_by);
+      CREATE INDEX IF NOT EXISTS idx_budgets_family_id ON budgets(family_id);
       CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
       CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
       CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+      CREATE INDEX IF NOT EXISTS idx_notifications_family_id ON notifications(family_id);
       CREATE INDEX IF NOT EXISTS idx_contacts_category ON contacts(category);
       CREATE INDEX IF NOT EXISTS idx_contacts_favorite ON contacts(is_favorite);
       CREATE INDEX IF NOT EXISTS idx_contacts_created_by ON contacts(created_by);
+      CREATE INDEX IF NOT EXISTS idx_contacts_family_id ON contacts(family_id);
       CREATE INDEX IF NOT EXISTS idx_contact_associations_contact ON contact_family_associations(contact_id);
       CREATE INDEX IF NOT EXISTS idx_contact_associations_member ON contact_family_associations(family_member_id);
+      CREATE INDEX IF NOT EXISTS idx_contact_links_family_id ON contact_links(family_id);
       CREATE INDEX IF NOT EXISTS idx_contact_links_contact ON contact_links(contact_id);
       CREATE INDEX IF NOT EXISTS idx_contact_links_linked ON contact_links(linked_type, linked_id);
       CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
       CREATE INDEX IF NOT EXISTS idx_messages_recipient ON messages(recipient_id);
       CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
       CREATE INDEX IF NOT EXISTS idx_messages_read ON messages(read);
+      CREATE INDEX IF NOT EXISTS idx_messages_family_id ON messages(family_id);
       CREATE INDEX IF NOT EXISTS idx_device_tokens_user_id ON device_tokens(user_id);
+      CREATE INDEX IF NOT EXISTS idx_device_tokens_family_id ON device_tokens(family_id);
       CREATE INDEX IF NOT EXISTS idx_activity_log_user_id ON activity_log(user_id);
       CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log(created_at);
       CREATE INDEX IF NOT EXISTS idx_activity_log_entity ON activity_log(entity_type, entity_id);
+      CREATE INDEX IF NOT EXISTS idx_activity_log_family_id ON activity_log(family_id);
       CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id);
       CREATE INDEX IF NOT EXISTS idx_events_parent ON events(parent_event_id);
       CREATE INDEX IF NOT EXISTS idx_notification_preferences_user_id ON notification_preferences(user_id);
+      CREATE INDEX IF NOT EXISTS idx_notification_preferences_family_id ON notification_preferences(family_id);
       CREATE INDEX IF NOT EXISTS idx_event_attendees_event ON event_attendees(event_id);
       CREATE INDEX IF NOT EXISTS idx_event_attendees_member ON event_attendees(family_member_id);
+      CREATE INDEX IF NOT EXISTS idx_event_attendees_family_id ON event_attendees(family_id);
       CREATE INDEX IF NOT EXISTS idx_event_attachments_event ON event_attachments(event_id);
+      CREATE INDEX IF NOT EXISTS idx_event_attachments_family_id ON event_attachments(family_id);
       CREATE INDEX IF NOT EXISTS idx_event_reminders_event ON event_reminders(event_id);
       CREATE INDEX IF NOT EXISTS idx_event_reminders_sent ON event_reminders(sent);
       CREATE INDEX IF NOT EXISTS idx_event_reminders_remind_at ON event_reminders(remind_at);
+      CREATE INDEX IF NOT EXISTS idx_event_reminders_family_id ON event_reminders(family_id);
     `);
+
+    // Backfill existing data with default families
+    await client.query(`
+      -- Create a default family for each existing user who doesn't have one
+      INSERT INTO families (id, name, created_by, created_at)
+      SELECT 
+        gen_random_uuid(),
+        COALESCE(u.name || '''s Family', 'Default Family'),
+        u.id,
+        NOW()
+      FROM users u
+      WHERE NOT EXISTS (
+        SELECT 1 FROM user_families uf WHERE uf.user_id = u.id
+      );
+    `);
+
+    await client.query(`
+      -- Add users to their default families as owners
+      INSERT INTO user_families (user_id, family_id, role, joined_at)
+      SELECT 
+        u.id,
+        f.id,
+        'owner',
+        NOW()
+      FROM users u
+      JOIN families f ON f.created_by = u.id
+      WHERE NOT EXISTS (
+        SELECT 1 FROM user_families uf WHERE uf.user_id = u.id
+      );
+    `);
+
+    // Backfill family_id for existing data
+    const tablesToBackfill = [
+      'tasks', 'events', 'shopping_items', 'family_relationships', 
+      'transactions', 'budgets', 'meals', 'notifications', 'contacts',
+      'contact_links', 'messages', 'device_tokens', 'notification_preferences',
+      'activity_log', 'event_attendees', 'event_attachments', 'event_reminders',
+      'family_members'
+    ];
+
+    for (const table of tablesToBackfill) {
+      try {
+        await client.query(`
+          UPDATE ${table} 
+          SET family_id = f.id
+          FROM families f
+          JOIN user_families uf ON uf.family_id = f.id
+          WHERE ${table}.family_id IS NULL
+          AND (
+            ${table}.created_by = uf.user_id 
+            OR ${table}.added_by = uf.user_id
+            OR ${table}.user_id = uf.user_id
+            OR ${table}.uploaded_by = uf.user_id
+            OR EXISTS (
+              SELECT 1 FROM family_members fm 
+              WHERE fm.id = ${table}.assigned_to 
+              AND fm.family_id = f.id
+            )
+          )
+          AND uf.role = 'owner';
+        `);
+      } catch (error) {
+        console.warn(`Failed to backfill ${table}:`, error);
+      }
+    }
 
     console.log('Database tables created successfully');
   } catch (error) {

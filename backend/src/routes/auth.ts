@@ -240,3 +240,28 @@ router.post('/refresh', async (req: Request, res: Response) => {
     }
 });
 
+// Switch active family (sets httpOnly cookie)
+router.post('/switch-family', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const { familyId } = req.body as { familyId?: string };
+        if (!familyId) return res.status(400).json({ error: 'familyId is required' });
+
+        const result = await pool.query(
+            'SELECT 1 FROM user_families WHERE user_id = $1 AND family_id = $2',
+            [req.user!.id, familyId]
+        );
+        if (result.rows.length === 0) return res.status(403).json({ error: 'Not a member of this family' });
+
+        res.cookie('activeFamilyId', familyId, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Switch family error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+

@@ -116,3 +116,10 @@
     backdrop-filter: blur(10px);
     background: rgba(255, 255, 255, 0.8);
 }
+
+
+/* Dynamic color for family member indicators */
+
+.member-color-indicator {
+    background-color: var(--member-color, #6b7280);
+}

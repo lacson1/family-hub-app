@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { Contact, ContactFamilyAssociation, FamilyMember } from '../services/api';
 
@@ -10,6 +10,23 @@ interface ContactFormProps {
     onSubmit: (contact: Omit<Contact, 'id' | 'is_favorite' | 'created_at' | 'updated_at'>, selectedMembers: { family_member_id: string; relationship_notes: string }[]) => void;
     onClose: () => void;
 }
+
+const MemberColorIndicator = ({ color }: { color: string }) => {
+    const ref = useRef<HTMLDivElement>(null);
+    
+    useEffect(() => {
+        if (ref.current) {
+            ref.current.style.setProperty('--member-color', color);
+        }
+    }, [color]);
+    
+    return (
+        <div
+            ref={ref}
+            className="w-3 h-3 rounded-full member-color-indicator"
+        />
+    );
+};
 
 export const ContactForm = ({ contact, associations = [], familyMembers, currentUser, onSubmit, onClose }: ContactFormProps) => {
     const [formData, setFormData] = useState({
@@ -233,10 +250,7 @@ export const ContactForm = ({ contact, associations = [], familyMembers, current
                                 <div key={sm.family_member_id} className="flex items-start gap-2 p-2 bg-gray-50 rounded-lg">
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <div
-                                                className="w-3 h-3 rounded-full"
-                                                style={{ backgroundColor: member.color }}
-                                            />
+                                            <MemberColorIndicator color={member.color} />
                                             <span className="text-sm font-medium">{member.name}</span>
                                         </div>
                                         <input

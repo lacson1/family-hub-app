@@ -1,14 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import pool from '../database/db';
+import { requireAuth } from '../middleware/auth';
+import { requireFamily, type FamilyRequest } from '../middleware/family';
 
 const router = Router();
 
 // Get all meals
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
     try {
         const result = await pool.query(
-            'SELECT * FROM meals ORDER BY date ASC, meal_type ASC, created_at DESC'
+            'SELECT * FROM meals WHERE family_id = $1 ORDER BY date ASC, meal_type ASC, created_at DESC',
+            [req.familyId]
         );
         res.json(result.rows);
     } catch (error) {
@@ -18,10 +21,10 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // Get single meal
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
     try {
         const { id } = req.params;
-        const result = await pool.query('SELECT * FROM meals WHERE id = $1', [id]);
+        const result = await pool.query('SELECT * FROM meals WHERE id = $1 AND family_id = $2', [id, req.familyId]);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Meal not found' });
@@ -37,13 +40,15 @@ router.get('/:id', async (req: Request, res: Response) => {
 // Create meal
 router.post(
     '/',
+    requireAuth,
+    requireFamily,
     [
         body('name').trim().notEmpty().withMessage('Name is required'),
         body('meal_type').isIn(['breakfast', 'lunch', 'dinner', 'snack']).withMessage('Invalid meal type'),
         body('date').isDate().withMessage('Valid date is required'),
         body('created_by').trim().notEmpty().withMessage('Created by is required'),
     ],
-    async (req: Request, res: Response) => {
+    async (req: FamilyRequest, res: Response) => {
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
             return res.status(400).json({ errors: errors.array() });
@@ -60,13 +65,13 @@ router.post(
                 `INSERT INTO meals (
                     name, meal_type, date, notes, prep_time, cook_time, servings,
                     ingredients, instructions, photo_url, is_favorite, is_template,
-                    tags, created_by
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+                    tags, created_by, family_id
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
                 [
                     name, meal_type, date, notes || null, prep_time || null, cook_time || null,
                     servings || 4, JSON.stringify(ingredients || []), instructions || null,
                     photo_url || null, is_favorite || false, is_template || false,
-                    tags || null, created_by
+                    tags || null, created_by, req.familyId
                 ]
             );
             res.status(201).json(result.rows[0]);

@@ -25,6 +25,7 @@ import notificationsTestRouter from './routes/notifications-test';
 import notificationPreferencesRouter from './routes/notification-preferences';
 import contactsRouter from './routes/contacts';
 import authRouter from './routes/auth';
+import familiesRouter from './routes/families';
 import messagesRouter from './routes/messages';
 import activityLogRouter from './routes/activityLog';
 import dashboardRouter from './routes/dashboard';
@@ -40,7 +41,7 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cookieParser());
 app.use(cors({
-    origin: process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || ['http://localhost:5173', 'https://family-hub-app-t7ea.vercel.app'],
+    origin: process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || ['http://localhost:5173', 'https://family-hub-app-t7ea-8l1ssm5sk-lacs-projects-650efe27.vercel.app'],
     credentials: true,
 }));
 app.use(express.json());
@@ -64,6 +65,7 @@ app.use('/api/notifications-test', notificationsTestRouter);
 app.use('/api/notification-preferences', requireAuth, notificationPreferencesRouter);
 app.use('/api/contacts', requireAuth, requireCsrf, contactsRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/families', familiesRouter);
 app.use('/api/messages', requireAuth, requireCsrf, messagesRouter);
 app.use('/api/activity-log', requireAuth, requireCsrf, activityLogRouter);
 app.use('/api/dashboard', requireAuth, requireCsrf, dashboardRouter);

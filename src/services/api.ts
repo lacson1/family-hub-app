@@ -116,10 +116,12 @@ interface Meal {
 const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
     const isUnsafe = ['POST', 'PUT', 'PATCH', 'DELETE'].includes((options.method || 'GET').toUpperCase());
     const csrfToken = isUnsafe ? getCookie('csrfToken') : undefined;
+    const activeFamilyId = getCookie('activeFamilyId');
     let response = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: {
             'Content-Type': 'application/json',
             ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+            ...(activeFamilyId ? { 'X-Family-Id': activeFamilyId } : {}),
             ...options.headers,
         },
         credentials: 'include',
@@ -133,6 +135,7 @@ const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
                 headers: {
                     'Content-Type': 'application/json',
                     ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+                    ...(activeFamilyId ? { 'X-Family-Id': activeFamilyId } : {}),
                     ...options.headers,
                 },
                 credentials: 'include',

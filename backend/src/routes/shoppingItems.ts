@@ -1,14 +1,17 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import pool from '../database/db';
+import { requireAuth } from '../middleware/auth';
+import { requireFamily, type FamilyRequest } from '../middleware/family';
 
 const router = Router();
 
 // Get all shopping items
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAuth, requireFamily, async (req: FamilyRequest, res: Response) => {
     try {
         const result = await pool.query(
-            'SELECT * FROM shopping_items ORDER BY purchased ASC, created_at DESC'
+            'SELECT * FROM shopping_items WHERE family_id = $1 ORDER BY purchased ASC, created_at DESC',
+            [req.familyId]
         );
         res.json(result.rows);
     } catch (error) {

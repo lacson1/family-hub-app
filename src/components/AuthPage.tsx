@@ -138,6 +138,7 @@ export function AuthPage() {
                                     className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all bg-gray-50/50 hover:bg-white/80 focus:bg-white"
                                     placeholder="Enter your email"
                                     disabled={isLoading}
+                                    data-testid="email"
                                 />
                             </div>
                         </div>
@@ -157,6 +158,7 @@ export function AuthPage() {
                                     className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 transition-all bg-gray-50/50 hover:bg-white/80 focus:bg-white"
                                     placeholder={isSignUp ? 'Create a password' : 'Enter your password'}
                                     disabled={isLoading}
+                                    data-testid="password"
                                 />
                             </div>
                         </div>
@@ -194,6 +196,7 @@ export function AuthPage() {
                             type="submit"
                             disabled={isLoading}
                             className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-2xl font-bold text-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3 btn-press hover-lift"
+                            data-testid={isSignUp ? "signup-button" : "signin-button"}
                         >
                             {isLoading ? (
                                 <>

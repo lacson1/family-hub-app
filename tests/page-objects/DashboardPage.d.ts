@@ -1,0 +1,31 @@
+import { Page } from '@playwright/test';
+export declare class DashboardPage {
+    private page;
+    constructor(page: Page);
+    get tasksButton(): import("playwright-core").Locator;
+    get calendarButton(): import("playwright-core").Locator;
+    get familyTreeButton(): import("playwright-core").Locator;
+    get shoppingButton(): import("playwright-core").Locator;
+    get mealsButton(): import("playwright-core").Locator;
+    get moneyButton(): import("playwright-core").Locator;
+    get contactsButton(): import("playwright-core").Locator;
+    get settingsButton(): import("playwright-core").Locator;
+    get logoutButton(): import("playwright-core").Locator;
+    get notificationsButton(): import("playwright-core").Locator;
+    get profileButton(): import("playwright-core").Locator;
+    goto(): Promise<void>;
+    navigateToTasks(): Promise<void>;
+    navigateToCalendar(): Promise<void>;
+    navigateToFamilyTree(): Promise<void>;
+    navigateToShopping(): Promise<void>;
+    navigateToMeals(): Promise<void>;
+    navigateToMoney(): Promise<void>;
+    navigateToContacts(): Promise<void>;
+    navigateToSettings(): Promise<void>;
+    openNotifications(): Promise<void>;
+    logout(): Promise<void>;
+    expectDashboardLoaded(): Promise<void>;
+    expectOnTasksView(): Promise<void>;
+    expectOnCalendarView(): Promise<void>;
+    expectOnFamilyTreeView(): Promise<void>;
+}

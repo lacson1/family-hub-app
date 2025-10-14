@@ -1,0 +1,110 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: familyhub_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5434:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Build backend
+        run: cd backend && npm run build
+
+      - name: Start backend server
+        run: |
+          cd backend
+          PORT=3002 DATABASE_URL=postgresql://postgres:postgres_test@localhost:5434/familyhub_test npm start &
+          sleep 10
+        env:
+          NODE_ENV: test
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Create .env.test file
+        run: |
+          cat > .env.test << EOF
+          VITE_API_URL=http://localhost:3002/api
+          DATABASE_URL=postgresql://postgres:postgres_test@localhost:5434/familyhub_test
+          NODE_ENV=test
+          PORT=3002
+          TEST_USER_EMAIL=testuser@example.com
+          TEST_USER_PASSWORD=TestPassword123!
+          TEST_USER_NAME=Test User
+          API_BASE_URL=http://localhost:3002/api
+          EOF
+
+      - name: Run Playwright tests
+        run: npm run test:e2e
+        env:
+          CI: true
+
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 30
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: screenshots
+          path: test-results/**/*.png
+          retention-days: 30
+
+      - name: Upload videos
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: videos
+          path: test-results/**/*.webm
+          retention-days: 30

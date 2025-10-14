@@ -1,0 +1,19 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Rounded rectangle background -->
+  <rect width="512" height="512" rx="112" fill="url(#grad)"/>
+  
+  <!-- House icon -->
+  <path d="M256 128L128 224V384H213V299H299V384H384V224L256 128Z" fill="white" stroke="white" stroke-width="10" stroke-linejoin="round"/>
+  
+  <!-- Heart icon (family love) -->
+  <path d="M256 352C256 352 192 310 192 267C192 246 203 235 219 235C235 235 246 246 256 261C266 246 277 235 293 235C309 235 320 246 320 267C320 310 256 352 256 352Z" fill="#f87171"/>
+</svg>
+

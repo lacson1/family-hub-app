@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  # Test PostgreSQL Database
+  test-db:
+    image: postgres:16-alpine
+    container_name: familyhub-test-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: familyhub_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_test
+    ports:
+      - "5434:5432"
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Test Backend API
+  test-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: familyhub-test-backend
+    restart: unless-stopped
+    environment:
+      PORT: 3002
+      DATABASE_URL: postgresql://postgres:postgres_test@test-db:5432/familyhub_test
+      NODE_ENV: test
+    ports:
+      - "3002:3002"
+    depends_on:
+      test-db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run dev
+
+volumes:
+  test_postgres_data:

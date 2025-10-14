@@ -1,0 +1,54 @@
+{
+    "name": "Family Hub - Stay Connected & Organized",
+    "short_name": "Family Hub",
+    "description": "A comprehensive family organization app for tasks, events, shopping, meals, and more",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#3b82f6",
+    "orientation": "portrait-primary",
+    "icons": [{
+            "src": "/icon-192.svg",
+            "sizes": "192x192",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.svg",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "shortcuts": [{
+            "name": "Tasks",
+            "short_name": "Tasks",
+            "description": "View and manage family tasks",
+            "url": "/?tab=tasks",
+            "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+        },
+        {
+            "name": "Shopping List",
+            "short_name": "Shopping",
+            "description": "View shopping list",
+            "url": "/?tab=shopping",
+            "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+        },
+        {
+            "name": "Meal Planner",
+            "short_name": "Meals",
+            "description": "Plan family meals",
+            "url": "/?tab=meals",
+            "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+        },
+        {
+            "name": "Calendar",
+            "short_name": "Calendar",
+            "description": "View family calendar",
+            "url": "/?tab=calendar",
+            "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+        }
+    ],
+    "categories": ["productivity", "lifestyle", "utilities"],
+    "screenshots": []
+}

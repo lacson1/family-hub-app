@@ -1,4 +1,16 @@
 import { TrendingUp, TrendingDown, PieChart as PieChartIcon } from 'lucide-react'
+import './money-charts.css'
+
+// Helper function to get percentage width class
+const getPercentageClass = (percentage: number): string => {
+    const rounded = Math.round(percentage / 5) * 5 // Round to nearest 5%
+    return `w-pct-${Math.min(Math.max(rounded, 0), 100)}`
+}
+
+// Helper function to get color class
+const getColorClass = (type: 'income' | 'expense', index: number): string => {
+    return `color-${type}-${index % 4}`
+}
 
 interface Transaction {
     id: string
@@ -50,11 +62,6 @@ export function MoneyCharts({ transactions }: MoneyChartsProps) {
     const totalIncome = incomeCategories.reduce((sum, [, amt]) => sum + amt, 0)
     const totalExpense = expenseCategories.reduce((sum, [, amt]) => sum + amt, 0)
 
-    const colors = {
-        income: ['bg-green-500', 'bg-green-400', 'bg-green-300', 'bg-green-200', 'bg-green-100'],
-        expense: ['bg-red-500', 'bg-red-400', 'bg-red-300', 'bg-red-200', 'bg-red-100']
-    }
-
     return (
         <div className="space-y-6">
             {/* Category Breakdown */}
@@ -79,8 +86,7 @@ export function MoneyCharts({ transactions }: MoneyChartsProps) {
                                         </div>
                                         <div className="w-full bg-gray-100 rounded-full h-2">
                                             <div
-                                                className={`${colors.income[idx]} h-2 rounded-full transition-all`}
-                                                style={{ width: `${percentage}%` }}
+                                                className={`${getColorClass('income', idx)} h-2 rounded-full transition-all ${getPercentageClass(percentage)}`}
                                             ></div>
                                         </div>
                                         <span className="text-xs text-gray-500">{percentage.toFixed(1)}%</span>
@@ -111,8 +117,7 @@ export function MoneyCharts({ transactions }: MoneyChartsProps) {
                                         </div>
                                         <div className="w-full bg-gray-100 rounded-full h-2">
                                             <div
-                                                className={`${colors.expense[idx]} h-2 rounded-full transition-all`}
-                                                style={{ width: `${percentage}%` }}
+                                                className={`${getColorClass('expense', idx)} h-2 rounded-full transition-all ${getPercentageClass(percentage)}`}
                                             ></div>
                                         </div>
                                         <span className="text-xs text-gray-500">{percentage.toFixed(1)}%</span>
@@ -147,8 +152,7 @@ export function MoneyCharts({ transactions }: MoneyChartsProps) {
                                             <div className="w-16 text-xs text-gray-500">Income</div>
                                             <div className="flex-1 bg-gray-100 rounded-full h-6 relative">
                                                 <div
-                                                    className="bg-green-500 h-6 rounded-full flex items-center justify-end pr-2 transition-all"
-                                                    style={{ width: `${incomeWidth}%` }}
+                                                    className={`bg-green-500 h-6 rounded-full flex items-center justify-end pr-2 transition-all ${getPercentageClass(incomeWidth)}`}
                                                 >
                                                     <span className="text-xs font-medium text-white">${data.income.toFixed(0)}</span>
                                                 </div>
@@ -158,8 +162,7 @@ export function MoneyCharts({ transactions }: MoneyChartsProps) {
                                             <div className="w-16 text-xs text-gray-500">Expense</div>
                                             <div className="flex-1 bg-gray-100 rounded-full h-6 relative">
                                                 <div
-                                                    className="bg-red-500 h-6 rounded-full flex items-center justify-end pr-2 transition-all"
-                                                    style={{ width: `${expenseWidth}%` }}
+                                                    className={`bg-red-500 h-6 rounded-full flex items-center justify-end pr-2 transition-all ${getPercentageClass(expenseWidth)}`}
                                                 >
                                                     <span className="text-xs font-medium text-white">${data.expense.toFixed(0)}</span>
                                                 </div>

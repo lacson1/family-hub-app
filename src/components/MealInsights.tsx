@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { UtensilsCrossed, Clock, TrendingUp, Star, Lightbulb } from 'lucide-react';
 import analyticsAPI, { type MealInsights as MealInsightsData } from '../services/analytics';
+import './meal-insights.css';
+
+// Helper function to get color class
+const getMealColorClass = (index: number): string => {
+    return `color-meal-${index % 6}`;
+};
 
 export const MealInsights: React.FC = () => {
     const [insights, setInsights] = useState<MealInsightsData | null>(null);
@@ -77,8 +83,7 @@ export const MealInsights: React.FC = () => {
                                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                                     <div className="flex items-center">
                                         <div
-                                            className="w-4 h-4 rounded mr-3"
-                                            style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                                            className={`w-4 h-4 rounded mr-3 ${getMealColorClass(index)}`}
                                         ></div>
                                         <span className="font-medium capitalize">{item.mealType}</span>
                                     </div>

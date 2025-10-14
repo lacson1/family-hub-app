@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Calendar, CheckSquare, Users, Home, Settings, Plus, Edit2, Trash2, ShoppingCart, MessageSquare, UtensilsCrossed, DollarSign, GitBranch, Contact as ContactIcon, FileText, Menu, TrendingUp, TrendingDown, Wallet, Target, BarChart3, Printer, TestTube2, Play } from 'lucide-react'
+import { Calendar, CheckSquare, Users, Home, Settings, Plus, Edit2, Trash2, ShoppingCart, MessageSquare, UtensilsCrossed, DollarSign, GitBranch, Contact as ContactIcon, FileText, Menu, TrendingUp, TrendingDown, Wallet, Target, BarChart3, Printer, TestTube2, Play, ChevronRight } from 'lucide-react'
 import { Modal, ConfirmDialog, Toast } from './components/Modal'
 import { TaskForm, EventForm } from './components/Forms'
 import { FamilyMemberForm } from './components/FamilyMemberForm'
@@ -173,7 +173,7 @@ const loadSettings = (): AppSettings => {
 
 function App() {
   const { user, isAuthenticated, isLoading } = useAuth()
-  const { activeFamily, families, isLoading: familyLoading } = useFamily()
+  const { families, isLoading: familyLoading } = useFamily()
   // activeFamily will be used for future features like showing family-specific data
 
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -2213,7 +2213,7 @@ function App() {
               className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
             >
               <span>View All</span>
-              <span>→</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
           <div className="space-y-3">
@@ -2246,7 +2246,7 @@ function App() {
               className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
             >
               <span>View All</span>
-              <span>→</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
           <div className="space-y-3">
@@ -2286,7 +2286,7 @@ function App() {
             className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
           >
             <span>View All</span>
-            <span>→</span>
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
         <div className="text-center py-8">

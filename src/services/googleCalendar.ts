@@ -1,6 +1,6 @@
 /// <reference types="gapi" />
 /// <reference types="gapi.auth2" />
-/// <reference types="gapi.client.calendar" />
+/// <reference types="gapi.client.calendar-v3" />
 
 declare const gapi: typeof import('gapi-script').gapi;
 
